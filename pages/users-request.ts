@@ -2,6 +2,7 @@ import { APIRequestContext } from "@playwright/test";
 import { User } from "./models/user";
 import { IRequest } from "./IRequest";
 import { Post } from "./models/post";
+import Todo from "./models/todo";
 
 export class UsersRequest implements IRequest {
   readonly request: APIRequestContext;
@@ -43,5 +44,9 @@ export class UsersRequest implements IRequest {
       data: post,
     });
 
-  addTodo = async (userId: number) => {};
+  addTodo = async (userId: number, toDo: Todo) =>
+    await this.request.post(`${this.#parameterizedEndpoint(userId)}/todos`, {
+      headers: this.headers,
+      data: toDo,
+    });
 }

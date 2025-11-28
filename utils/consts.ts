@@ -11,3 +11,7 @@ export const invalidTokenResponse: ErrorMessage = {
 export const NotFoundResponse: ErrorMessage = {
   message: "Resource not found",
 };
+
+export const InvalidAuthTokenHeader = {
+  Authorization: "Bearer InvalidToken",
+};

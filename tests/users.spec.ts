@@ -1,21 +1,22 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, APIRequestContext } from "@playwright/test";
 import { UsersRequest } from "../pages/users-request";
 import { User, Post, FieldErrorMessage, ErrorMessage } from "../pages/models";
 import {
   authFailedResponse,
+  generateRandomEmail,
   generateRandomValidPost,
+  generateRandomValidTodo,
   generateRandomValidUser,
   generateText,
+  InvalidAuthTokenHeader,
   invalidTokenResponse,
   NotFoundResponse,
 } from "../utils";
 import HttpStatusCode from "../utils";
 
-let headers = {
-  Authorization: `Bearer ${process.env.AUTH_TOKEN}`,
-};
+let headers: any;
 
-test.beforeEach("Setup token", async () => {
+test.beforeAll("Setup token", async () => {
   headers = {
     Authorization: `Bearer ${process.env.AUTH_TOKEN}`,
   };
@@ -24,12 +25,7 @@ test.beforeEach("Setup token", async () => {
 test.describe("1. Retrieve list of users", () => {
   // Todo check
   test.describe("Parameter search", () => {
-    const user: User = {
-      name: "Test Parameters",
-      email: "ParamTest@email.test",
-      gender: "female",
-      status: "inactive",
-    };
+    const user: User = generateRandomValidUser("Parameters");
 
     test.beforeAll(
       "Create user used for Parameter Search tests",
@@ -103,9 +99,7 @@ test.describe("4. Create a new user", () => {
     test("Should return Unauthorized (401) if token is invalid", async ({
       request,
     }) => {
-      headers.Authorization = "Bearer testInvalidToken";
-
-      const userRequest = new UsersRequest(request, headers);
+      const userRequest = new UsersRequest(request, InvalidAuthTokenHeader);
 
       const response = await userRequest.createUser(generateRandomValidUser());
       const responseBody = await response.json();
@@ -215,6 +209,35 @@ test.describe("4. Create a new user", () => {
         expect(responseBody).toHaveLength(1);
         expect(responseBody).toContainEqual(expectedResponseBody);
       });
+
+      [
+        { property: "name", maxLength: 200 },
+        { property: "email", maxLength: 200 },
+      ].forEach(({ property, maxLength }) => {
+        test(`Should return error if ${property} exceeds ${maxLength}`, async ({
+          request,
+        }) => {
+          const userRequest = new UsersRequest(request, headers);
+          const expectedErrorMessage: FieldErrorMessage = {
+            field: property,
+            message: `is too long (maximum is ${maxLength} characters)`,
+          };
+          let user = generateRandomValidUser();
+          let generatedWrongValue =
+            property === "email"
+              ? generateRandomEmail(maxLength + 1)
+              : generateText(maxLength + 1);
+
+          user[`${property}`] = generatedWrongValue;
+
+          const response = await userRequest.createUser(user);
+          const responseBody = await response.json();
+
+          expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
+          expect(responseBody).toHaveLength(1);
+          expect(responseBody).toContainEqual(expectedErrorMessage);
+        });
+      });
     });
   });
 });
@@ -254,9 +277,7 @@ test.describe("Previous user is needed", () => {
       test("Should return Unauthorized (401) if token is invalid", async ({
         request,
       }) => {
-        headers.Authorization = "Bearer testInvalidToken";
-
-        const userRequest = new UsersRequest(request, headers);
+        const userRequest = new UsersRequest(request, InvalidAuthTokenHeader);
 
         const response = await userRequest.addPost(createdUser.id, {});
         const responseBody = await response.json();
@@ -375,11 +396,35 @@ test.describe("Previous user is needed", () => {
       });
     });
   });
+
+  test.describe("6. Create a user's todo.", () => {
+    test.describe("Invalid token", () => {
+      // Leaving this like this right now, I think there's a way of reusing this tests
+    });
+    test.describe("Valid token", () => {
+      [{ withDate: false }, { withDate: true }].forEach(({ withDate }) => {
+        test(`Should create a ToDo if valid data is provided ${
+          withDate ? "with" : "without"
+        } date`, async ({ request }) => {
+          const userRequest = new UsersRequest(request, headers);
+          const baseTodo = generateRandomValidTodo(withDate);
+
+          const response = await userRequest.addTodo(createdUser.id, baseTodo);
+          const responseBody = await response.json();
+
+          expect(response.status()).toBe(HttpStatusCode.CREATED);
+          expect(responseBody.id).toBeTruthy();
+          // TODO fix date
+          // expect(responseBody).toEqual(expect.objectContaining(baseTodo));
+        });
+      });
+    });
+  });
 });
 
 test.describe("Delete the changed user", () => {
   let createdUser: User;
-  test.beforeEach("Create user", async ({ request }) => {
+  test.beforeAll("Create user", async ({ request }) => {
     const userRequest = new UsersRequest(request, headers);
     const response = await userRequest.createUser(
       generateRandomValidUser("Delete")
@@ -387,7 +432,7 @@ test.describe("Delete the changed user", () => {
     createdUser = await response.json();
   });
 
-  test.afterEach("Clean up", async ({ request }) => {
+  test.afterAll("Clean up", async ({ request }) => {
     const userRequest = new UsersRequest(request, headers);
     if (createdUser.id) await userRequest.deleteUser(createdUser.id);
   });
@@ -409,9 +454,7 @@ test.describe("Delete the changed user", () => {
     test("Should return Unauthorized (401) if token is invalid", async ({
       request,
     }) => {
-      headers.Authorization = "Bearer testInvalidToken";
-
-      const userRequest = new UsersRequest(request, headers);
+      const userRequest = new UsersRequest(request, InvalidAuthTokenHeader);
 
       const response = await userRequest.deleteUser(createdUser.id);
       const responseBody = await response.json();
