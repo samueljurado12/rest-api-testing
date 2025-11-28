@@ -11,13 +11,15 @@ Some tests that I found using exploratory testing:
 - Exercise 5.
   - Both tests that validate max length in both title and body.
 
-Regarding test from exercise `5 - Valid token - Should return validation if user id is not a number`, I have multiple doubts about it. As there are no test scenarios for `Creating a post` without using user's endpoint, I will let it there with the skip. My main issue with this test is that it should be verified within the posts endpoint itself, which is the one that expects to receive an user_id parameter, as in `users/{id}/posts`, the user id is infered from the url. There's no possibility that if you send a non-numeric user id in the url, using users endpoint, test `Should return error if user does not exist` doesn't cover it, because if you send something non-numeric through that endpoint, it won't exist.
+Regarding test from exercise `5 - Valid token - Should return validation if user id is not a number`, I have multiple doubts about it. As there are no test scenarios for `Creating a post` without using user's endpoint, I will let it there with the skip. My main issue with this test is that it should be verified within the posts endpoint itself, which is the one that expects to receive an user_id parameter, as in `users/{id}/posts`, the user id is infered from the url. There's no possibility that if you send a non-numeric user id in the url, using users endpoint, test `Should return error if user does not exist` doesn't cover it, because if you send something non-numeric through that endpoint, it won't exist. Same logic apply to posting todos using the nested resource from user, but I haven't done that test.
 
 I would have deleted it, but I thought it was better to leave it as skip an explain here why I think it shouldn't be there
 
 ## Possible errors found
 
-### Status field
+These are what I think are errors in the API, maybe they are not, but I've done my tests having this information into account as they need to run green for the test.
+
+### User's Status field
 
 When creating users, if you don't provide any field, the response states that fields cannot be blank and, specifically for gender, that it needs to be male or female.
 
@@ -27,9 +29,13 @@ It is pretty clear that for field gender, anything outside male or female are in
 
 ![Response to valid user with random ](images/ResultWithValidUserRandomStatus.png)
 
-I've done my tests having this into account and treating this field as it only accepts active and inactive as valid values as it's mandatory to have all tests to run green, but I think this is an issue in the API. It should be found by testing if I made them to check that any non-empty string should create a valid user, which will result in the test failing.
+I've done my tests having this into account and treating this field as it only accepts active and inactive as valid values. It should be found by testing if I made them to check that any non-empty string should create a valid user, which will result in the test failing.
 
 I've tried with different values and also checked the GET results, and I only found active and inactive as valid values.
+
+### Delete return 404 when no token is presents
+
+In my opinion, I think this should return a 401 stating `"Authentication failed"` in the error message, as seen in other endpoints that required the token. The fact that if you send an invalid token returns 401 and the `"Invalid token message"` reinforces this thought.
 
 ## Issues found during development
 

@@ -8,14 +8,10 @@ export const invalidTokenResponse: ErrorMessage = {
   message: "Invalid token",
 };
 
-export const baseUser: User = {
-  name: "Test",
-  email: "Test@email.com",
-  gender: "male",
-  status: "active",
+export const NotFoundResponse: ErrorMessage = {
+  message: "Resource not found",
 };
 
-export const basePost: Post = {
-  title: "This is a test for a Post. This is the title.",
-  body: "This is a test for a Post. This is the body.",
+export const InvalidAuthTokenHeader = {
+  Authorization: "Bearer InvalidToken",
 };
