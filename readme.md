@@ -1,5 +1,20 @@
 # Rest API testing
 
+I've done all the tests that have come to my mind at first sight and other ones that I found useful after playing around with the Rest Console.
+
+Some tests that I found using exploratory testing:
+
+- Exercise 4.
+  - All create users with valid data, as I realized that gender and status have only two valid values each.
+  - Body validations - Should return error message if gender is not male or female
+  - Body validations - Should return error message if status is not active or inactive.
+- Exercise 5.
+  - Both tests that validate max length in both title and body.
+
+Regarding test from exercise `5 - Valid token - Should return validation if user id is not a number`, I have multiple doubts about it. As there are no test scenarios for `Creating a post` without using user's endpoint, I will let it there with the skip. My main issue with this test is that it should be verified within the posts endpoint itself, which is the one that expects to receive an user_id parameter, as in `users/{id}/posts`, the user id is infered from the url. There's no possibility that if you send a non-numeric user id in the url, using users endpoint, test `Should return error if user does not exist` doesn't cover it, because if you send something non-numeric through that endpoint, it won't exist.
+
+I would have deleted it, but I thought it was better to leave it as skip an explain here why I think it shouldn't be there
+
 ## Possible errors found
 
 ### Status field
