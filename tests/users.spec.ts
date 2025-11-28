@@ -1,12 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { UsersRequest } from "../pages/users-request";
-import { User, Post, FieldErrorMessage } from "../pages/models";
+import { User, Post, FieldErrorMessage, ErrorMessage } from "../pages/models";
 import {
   authFailedResponse,
-  basePost,
-  baseUser,
+  generateRandomValidPost,
+  generateRandomValidUser,
   generateText,
   invalidTokenResponse,
+  NotFoundResponse,
 } from "../utils";
 import HttpStatusCode from "../utils";
 
@@ -91,7 +92,7 @@ test.describe("4. Create a new user", () => {
     }) => {
       const userRequest = new UsersRequest(request);
 
-      const response = await userRequest.createUser(baseUser);
+      const response = await userRequest.createUser(generateRandomValidUser());
 
       const responseBody = await response.json();
 
@@ -106,7 +107,7 @@ test.describe("4. Create a new user", () => {
 
       const userRequest = new UsersRequest(request, headers);
 
-      const response = await userRequest.createUser(baseUser);
+      const response = await userRequest.createUser(generateRandomValidUser());
       const responseBody = await response.json();
 
       expect(response.status()).toBe(HttpStatusCode.UNAUTHORIZED);
@@ -117,17 +118,16 @@ test.describe("4. Create a new user", () => {
   test.describe("Valid token", () => {
     test.describe("Create users with valid data", () => {
       [
-        { number: 1, gender: "male", status: "active" },
-        { number: 2, gender: "female", status: "active" },
-        { number: 3, gender: "male", status: "inactive" },
-        { number: 4, gender: "female", status: "inactive" },
-      ].forEach(({ number, gender, status }) => {
+        { gender: "male", status: "active" },
+        { gender: "female", status: "active" },
+        { gender: "male", status: "inactive" },
+        { gender: "female", status: "inactive" },
+      ].forEach(({ gender, status }) => {
         test(`Should create user if valid data is provided. Case - gender: ${gender}, status: ${status}`, async ({
           request,
         }) => {
           const user: User = {
-            name: `Test ${number}`,
-            email: `Test_${number}@email.test`,
+            ...generateRandomValidUser(),
             gender,
             status,
           };
@@ -164,7 +164,7 @@ test.describe("4. Create a new user", () => {
               ? "can't be blank, can be male of female"
               : "can't be blank";
 
-          const user = { ...baseUser, ...emptyData };
+          const user = { ...generateRandomValidUser(), ...emptyData };
           const expectedResponseBody: FieldErrorMessage = {
             message: errorMessage,
             field: property,
@@ -183,7 +183,7 @@ test.describe("4. Create a new user", () => {
       }) => {
         const userRequest: UsersRequest = new UsersRequest(request, headers);
         const gender = "whatever";
-        const user = { ...baseUser, gender };
+        const user = { ...generateRandomValidUser(), gender };
         const expectedResponseBody: FieldErrorMessage = {
           message: "can't be blank, can be male of female",
           field: "gender",
@@ -202,7 +202,7 @@ test.describe("4. Create a new user", () => {
       }) => {
         const userRequest: UsersRequest = new UsersRequest(request, headers);
         const status = "disabled";
-        const user = { ...baseUser, status: status };
+        const user = { ...generateRandomValidUser(), status: status };
         const expectedResponseBody: FieldErrorMessage = {
           message: "can't be blank",
           field: "status",
@@ -220,17 +220,13 @@ test.describe("4. Create a new user", () => {
 });
 
 test.describe("Previous user is needed", () => {
-  test.describe.configure({ mode: "serial" });
   let createdUser: User;
   test.beforeAll("Create user", async ({ request }) => {
     const userRequest = new UsersRequest(request, headers);
-    const user: User = {
-      name: "Test create Post",
-      email: "TestPost@email.test",
-      gender: "male",
-      status: "active",
-    };
-    const response = await userRequest.createUser(user);
+
+    const response = await userRequest.createUser(
+      generateRandomValidUser("Post")
+    );
     createdUser = await response.json();
   });
 
@@ -240,6 +236,7 @@ test.describe("Previous user is needed", () => {
   });
 
   test.describe("5. Create a user's post", () => {
+    test.describe.configure({ mode: "serial" });
     test.describe("Invalid token", () => {
       test("Should return Unauthorized (401) if token is not present", async ({
         request,
@@ -273,16 +270,14 @@ test.describe("Previous user is needed", () => {
         request,
       }) => {
         const userRequest = new UsersRequest(request, headers);
-        const expectedPost: Post = {
-          user_id: createdUser.id,
-          ...basePost,
-        };
+        const expectedPost: Post = generateRandomValidPost();
 
-        const response = await userRequest.addPost(createdUser.id, basePost);
+        const response = await userRequest.addPost(
+          createdUser.id,
+          expectedPost
+        );
         const responseBody = await response.json();
         const { id, user_id } = responseBody;
-
-        console.log(createdUser);
 
         expect(response.status()).toBe(HttpStatusCode.CREATED);
         expect(id).toBeTruthy();
@@ -300,7 +295,10 @@ test.describe("Previous user is needed", () => {
           message: "must exist",
         };
 
-        const response = await userRequest.addPost(invalidUserId, basePost);
+        const response = await userRequest.addPost(
+          invalidUserId,
+          generateRandomValidPost()
+        );
         const responseBody = await response.json();
 
         expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
@@ -313,7 +311,7 @@ test.describe("Previous user is needed", () => {
           request,
         }) => {
           const userRequest = new UsersRequest(request, headers);
-          let emptyPropertyPost = { ...basePost };
+          let emptyPropertyPost = generateRandomValidPost();
           emptyPropertyPost[property] = "";
           const expectedErrorMessage: FieldErrorMessage = {
             field: `${property}`,
@@ -343,8 +341,8 @@ test.describe("Previous user is needed", () => {
             field: property,
             message: `is too long (maximum is ${maxLength} characters)`,
           };
-          let post = { ...basePost };
-          post[`${property}`] = generateText(maxLength + 1, 10);
+          let post = generateRandomValidPost();
+          post[`${property}`] = generateText(maxLength + 1);
 
           const response = await userRequest.addPost(createdUser.id, post);
           const responseBody = await response.json();
@@ -365,13 +363,82 @@ test.describe("Previous user is needed", () => {
         };
         let user_id;
 
-        const response = await userRequest.addPost(user_id, basePost);
+        const response = await userRequest.addPost(
+          user_id,
+          generateRandomValidPost()
+        );
         const responseBody = await response.json();
 
         expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
         expect(responseBody).toHaveLength(2);
         expect(responseBody).toContainEqual(expectedErrorMessage);
       });
+    });
+  });
+});
+
+test.describe("Delete the changed user", () => {
+  let createdUser: User;
+  test.beforeEach("Create user", async ({ request }) => {
+    const userRequest = new UsersRequest(request, headers);
+    const response = await userRequest.createUser(
+      generateRandomValidUser("Delete")
+    );
+    createdUser = await response.json();
+  });
+
+  test.afterEach("Clean up", async ({ request }) => {
+    const userRequest = new UsersRequest(request, headers);
+    if (createdUser.id) await userRequest.deleteUser(createdUser.id);
+  });
+
+  test.describe("Invalid Token", () => {
+    test("Should return Not Found (404) if token is not present", async ({
+      request,
+    }) => {
+      const userRequest = new UsersRequest(request);
+
+      const response = await userRequest.deleteUser(createdUser.id);
+
+      const responseBody = await response.json();
+
+      expect(response.status()).toBe(HttpStatusCode.NOT_FOUND);
+      expect(responseBody).toEqual(NotFoundResponse);
+    });
+
+    test("Should return Unauthorized (401) if token is invalid", async ({
+      request,
+    }) => {
+      headers.Authorization = "Bearer testInvalidToken";
+
+      const userRequest = new UsersRequest(request, headers);
+
+      const response = await userRequest.deleteUser(createdUser.id);
+      const responseBody = await response.json();
+
+      expect(response.status()).toBe(HttpStatusCode.UNAUTHORIZED);
+      expect(responseBody).toEqual(invalidTokenResponse);
+    });
+  });
+
+  test.describe("Valid token", () => {
+    test("Should return Not Found (404) if user does not exist", async ({
+      request,
+    }) => {
+      const userRequest = new UsersRequest(request, headers);
+
+      const response = await userRequest.deleteUser(-1);
+      const responseBody = await response.json();
+
+      expect(response.status()).toBe(HttpStatusCode.NOT_FOUND);
+      expect(responseBody).toEqual(NotFoundResponse);
+    });
+    test("Should delete user if everything is fine", async ({ request }) => {
+      const userRequest = new UsersRequest(request, headers);
+
+      const response = await userRequest.deleteUser(createdUser.id);
+
+      expect(response.status()).toBe(HttpStatusCode.NO_CONTENT);
     });
   });
 });
