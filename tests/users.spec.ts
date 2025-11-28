@@ -5,6 +5,7 @@ import {
   authFailedResponse,
   basePost,
   baseUser,
+  generateText,
   invalidTokenResponse,
 } from "../utils";
 import HttpStatusCode from "../utils";
@@ -218,7 +219,8 @@ test.describe("4. Create a new user", () => {
   });
 });
 
-test.describe("5. Create a user's post", () => {
+test.describe("Previous user is needed", () => {
+  test.describe.configure({ mode: "serial" });
   let createdUser: User;
   test.beforeAll("Create user", async ({ request }) => {
     const userRequest = new UsersRequest(request, headers);
@@ -237,54 +239,139 @@ test.describe("5. Create a user's post", () => {
     if (createdUser.id) await userRequest.deleteUser(createdUser.id);
   });
 
-  test.describe("Invalid token", () => {
-    test("Should return Unauthorized (401) if token is not present", async ({
-      request,
-    }) => {
-      const userRequest = new UsersRequest(request);
+  test.describe("5. Create a user's post", () => {
+    test.describe("Invalid token", () => {
+      test("Should return Unauthorized (401) if token is not present", async ({
+        request,
+      }) => {
+        const userRequest = new UsersRequest(request);
 
-      const response = await userRequest.addPost(createdUser.id, {});
+        const response = await userRequest.addPost(createdUser.id, {});
 
-      const responseBody = await response.json();
+        const responseBody = await response.json();
 
-      expect(response.status()).toBe(HttpStatusCode.UNAUTHORIZED);
-      expect(responseBody).toEqual(authFailedResponse);
+        expect(response.status()).toBe(HttpStatusCode.UNAUTHORIZED);
+        expect(responseBody).toEqual(authFailedResponse);
+      });
+
+      test("Should return Unauthorized (401) if token is invalid", async ({
+        request,
+      }) => {
+        headers.Authorization = "Bearer testInvalidToken";
+
+        const userRequest = new UsersRequest(request, headers);
+
+        const response = await userRequest.addPost(createdUser.id, {});
+        const responseBody = await response.json();
+
+        expect(response.status()).toBe(HttpStatusCode.UNAUTHORIZED);
+        expect(responseBody).toEqual(invalidTokenResponse);
+      });
     });
+    test.describe("Valid token", () => {
+      test("Should create a post if valid data is provided", async ({
+        request,
+      }) => {
+        const userRequest = new UsersRequest(request, headers);
+        const expectedPost: Post = {
+          user_id: createdUser.id,
+          ...basePost,
+        };
 
-    test("Should return Unauthorized (401) if token is invalid", async ({
-      request,
-    }) => {
-      headers.Authorization = "Bearer testInvalidToken";
+        const response = await userRequest.addPost(createdUser.id, basePost);
+        const responseBody = await response.json();
+        const { id, user_id } = responseBody;
 
-      const userRequest = new UsersRequest(request, headers);
+        console.log(createdUser);
 
-      const response = await userRequest.addPost(createdUser.id, {});
-      const responseBody = await response.json();
+        expect(response.status()).toBe(HttpStatusCode.CREATED);
+        expect(id).toBeTruthy();
+        expect(user_id).toBe(createdUser.id);
+        expect(responseBody).toEqual(expect.objectContaining(expectedPost));
+      });
 
-      expect(response.status()).toBe(HttpStatusCode.UNAUTHORIZED);
-      expect(responseBody).toEqual(invalidTokenResponse);
-    });
-  });
-  test.describe("Valid token", () => {
-    test("Should create a post if valid data is provided", async ({
-      request,
-    }) => {
-      const userRequest = new UsersRequest(request, headers);
-      const expectedPost: Post = {
-        user_id: createdUser.id,
-        ...basePost,
-      };
+      test("Should return error if user id does not exist", async ({
+        request,
+      }) => {
+        const userRequest = new UsersRequest(request, headers);
+        const invalidUserId = -1;
+        const expectedErrorMessage: FieldErrorMessage = {
+          field: "user",
+          message: "must exist",
+        };
 
-      const response = await userRequest.addPost(createdUser.id, basePost);
-      const responseBody = await response.json();
-      const { id, user_id } = responseBody;
+        const response = await userRequest.addPost(invalidUserId, basePost);
+        const responseBody = await response.json();
 
-      console.log(createdUser);
+        expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
+        expect(responseBody).toHaveLength(1);
+        expect(responseBody).toContainEqual(expectedErrorMessage);
+      });
 
-      expect(response.status()).toBe(HttpStatusCode.CREATED);
-      expect(id).toBeTruthy();
-      expect(user_id).toBe(createdUser.id);
-      expect(responseBody).toEqual(expect.objectContaining(expectedPost));
+      [{ property: "title" }, { property: "body" }].forEach(({ property }) => {
+        test(`Should return error when sending empty ${property}`, async ({
+          request,
+        }) => {
+          const userRequest = new UsersRequest(request, headers);
+          let emptyPropertyPost = { ...basePost };
+          emptyPropertyPost[property] = "";
+          const expectedErrorMessage: FieldErrorMessage = {
+            field: `${property}`,
+            message: "can't be blank",
+          };
+
+          const response = await userRequest.addPost(
+            createdUser.id,
+            emptyPropertyPost
+          );
+          const responseBody = await response.json();
+
+          expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
+          expect(responseBody).toHaveLength(1);
+          expect(responseBody).toContainEqual(expectedErrorMessage);
+        });
+      });
+      [
+        { property: "title", maxLength: 200 },
+        { property: "body", maxLength: 500 },
+      ].forEach(({ property, maxLength }) => {
+        test(`Should return error if ${property} exceeds limit of ${maxLength} characters`, async ({
+          request,
+        }) => {
+          const userRequest = new UsersRequest(request, headers);
+          const expectedErrorMessage: FieldErrorMessage = {
+            field: property,
+            message: `is too long (maximum is ${maxLength} characters)`,
+          };
+          let post = { ...basePost };
+          post[`${property}`] = generateText(maxLength + 1, 10);
+
+          const response = await userRequest.addPost(createdUser.id, post);
+          const responseBody = await response.json();
+
+          expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
+          expect(responseBody).toHaveLength(1);
+          expect(responseBody).toContainEqual(expectedErrorMessage);
+        });
+      });
+
+      test.skip("Should return validation if user id is not a number", async ({
+        request,
+      }) => {
+        const userRequest = new UsersRequest(request, headers);
+        const expectedErrorMessage: FieldErrorMessage = {
+          field: "user_id",
+          message: "is not a number",
+        };
+        let user_id;
+
+        const response = await userRequest.addPost(user_id, basePost);
+        const responseBody = await response.json();
+
+        expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
+        expect(responseBody).toHaveLength(2);
+        expect(responseBody).toContainEqual(expectedErrorMessage);
+      });
     });
   });
 });
