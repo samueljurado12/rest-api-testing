@@ -11,15 +11,8 @@ export class PostsRequest implements IRequest {
     this.headers = headers;
   }
 
-  deletePost = async (postId: number) => {
-    await this.request.delete(`${this.endpoint}/${postId}`, {
-      headers: this.headers,
-    });
-  };
-
-  getPosts = async (params?: any) => {
+  getPosts = async (params?: any) =>
     await this.request.get(this.endpoint, {
       params: params,
     });
-  };
 }

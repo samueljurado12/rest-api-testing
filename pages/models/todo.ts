@@ -1,4 +1,6 @@
-export interface Todo {
+import { Record } from "./base";
+
+export interface Todo extends Record {
   id?: number;
   user_id?: number;
   due_on?: string;

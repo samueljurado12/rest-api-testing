@@ -24,12 +24,12 @@ export const generateText = (length: number) =>
   lorem.generator.generateRandomSentence(length).substring(0, length);
 
 export const generateRandomValidUser = (keyword?: string): User => {
-  const randomWord = lorem.generateWords(1);
+  const randomWords = lorem.generateWords(2);
   const gender = generateValueFromList(["male", "female"]);
   const status = generateValueFromList(["active", "inactive"]);
   return {
-    name: `Test User ${randomWord} ${keyword}`,
-    email: `TestUser_${randomWord}_${keyword}@email.test`,
+    name: `Test User ${randomWords} ${keyword}`,
+    email: `TestUser_${randomWords.split(" ").join("_")}_${keyword}@email.test`,
     gender,
     status,
   };

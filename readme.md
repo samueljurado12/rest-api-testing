@@ -33,10 +33,6 @@ I've done my tests having this into account and treating this field as it only a
 
 I've tried with different values and also checked the GET results, and I only found active and inactive as valid values.
 
-### Delete return 404 when no token is presents
-
-In my opinion, I think this should return a 401 stating `"Authentication failed"` in the error message, as seen in other endpoints that required the token. The fact that if you send an invalid token returns 401 and the `"Invalid token message"` reinforces this thought.
-
 ## Issues found during development
 
 ### Default config not working for auth token

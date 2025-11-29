@@ -1,4 +1,6 @@
-export interface User {
+import { Record } from "./base";
+
+export interface User extends Record {
   id?: number;
   name: string;
   email: string;

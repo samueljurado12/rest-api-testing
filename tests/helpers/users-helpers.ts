@@ -1,7 +1,97 @@
 import { APIRequestContext, expect } from "@playwright/test";
-import HttpStatusCode, { InvalidAuthTokenHeader } from "../../utils";
-import { UsersRequest, User, Post, Todo } from "../../pages";
-import { authUsersRequest } from "./helpers";
+import { Post, User, Todo } from "../../pages/models";
+import HttpStatusCode, {
+  generateRandomValidUser,
+  InvalidAuthTokenHeader,
+} from "../../utils";
+import { UsersRequest } from "../../pages";
+import { executeHTTPRequest } from "../../pages/request";
+import { Response } from "../../pages/models/response";
+
+/**
+ * Create a UsersRequest with auth headers
+ */
+export const authUsersRequest = (request: APIRequestContext, headers: any) =>
+  new UsersRequest(request, headers);
+
+/**
+ * Create a user and return both the user and a cleanup function
+ */
+export const createUserWithCleanup = async (
+  request: APIRequestContext,
+  headers: any,
+  userData?: Partial<User>
+) => {
+  const usersReq = authUsersRequest(request, headers);
+  const userPayload: User = {
+    ...generateRandomValidUser(),
+    ...userData,
+  } as User;
+  const res = await usersReq.createUser(userPayload);
+  const created = await res.json();
+
+  return {
+    status: res.status(),
+    user: created,
+    cleanup: async () => {
+      if (created?.id) await usersReq.deleteUser(created.id);
+    },
+  };
+};
+
+/**
+ * Create a post for a user and return both response and post data
+ * (Cleanup happens via user deletion cascade)
+ */
+export const createPost = async (
+  request: APIRequestContext,
+  headers: any,
+  userId: number,
+  postPayload: Post
+) => {
+  const usersReq = authUsersRequest(request, headers);
+  const response = await usersReq.addPost(userId, postPayload);
+  const body = await response.json();
+  return { status: response.status(), body };
+};
+
+/**
+ * Create a todo for a user and return both response and todo data
+ * (Cleanup happens via user deletion cascade)
+ */
+export const createTodo = async (
+  request: APIRequestContext,
+  headers: any,
+  userId: number,
+  todoPayload: Todo
+) => {
+  const usersReq = authUsersRequest(request, headers);
+  const response = await usersReq.addTodo(userId, todoPayload);
+  const body = await response.json();
+  return { status: response.status(), body };
+};
+
+/**
+ * Updates a user with the specified user ID and payload.
+ * Returns both the response and the updated user data.
+ */
+export const updateUser = async (
+  request: APIRequestContext,
+  headers: any,
+  userId: number,
+  userPayload: Partial<User>
+): Promise<Response<User>> => {
+  const response = await executeHTTPRequest<User>(
+    (req) =>
+      req.patch(`/public/v2/users/${userId}`, {
+        headers,
+        data: userPayload,
+      }),
+    request
+  );
+
+  return response;
+};
 
 /**
  * Test invalid token scenarios: missing token and invalid token
