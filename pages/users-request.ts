@@ -1,8 +1,7 @@
 import { APIRequestContext } from "@playwright/test";
 import { User } from "./models/user";
 import { IRequest } from "./IRequest";
-import { Post } from "./models/post";
-import Todo from "./models/todo";
+import { Post, Todo } from "./models/";
 
 export class UsersRequest implements IRequest {
   readonly request: APIRequestContext;
@@ -48,5 +47,11 @@ export class UsersRequest implements IRequest {
     await this.request.post(`${this.#parameterizedEndpoint(userId)}/todos`, {
       headers: this.headers,
       data: toDo,
+    });
+
+  editUser = async (userId: number, user: Partial<User>) =>
+    await this.request.patch(this.#parameterizedEndpoint(userId), {
+      headers: this.headers,
+      data: user,
     });
 }

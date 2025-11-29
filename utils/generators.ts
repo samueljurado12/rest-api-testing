@@ -11,9 +11,7 @@ const lorem: LoremIpsum = new LoremIpsum({
 const getRandomISODate = (from: Date, to: Date): string => {
   const fromTime = from.getTime();
   const toTime = to.getTime();
-  return toISOStringWithTimezone(
-    new Date(fromTime + Math.random() * (toTime - fromTime))
-  );
+  return new Date(fromTime + Math.random() * (toTime - fromTime)).toISOString();
 };
 
 const generateValueFromList = (list: any[]) => {
@@ -26,12 +24,12 @@ export const generateText = (length: number) =>
   lorem.generator.generateRandomSentence(length).substring(0, length);
 
 export const generateRandomValidUser = (keyword?: string): User => {
-  const randomWord = lorem.generateWords(1);
+  const randomWords = lorem.generateWords(2);
   const gender = generateValueFromList(["male", "female"]);
   const status = generateValueFromList(["active", "inactive"]);
   return {
-    name: `Test User ${randomWord} ${keyword}`,
-    email: `TestUser_${randomWord}_${keyword}@email.test`,
+    name: `Test User ${randomWords} ${keyword}`,
+    email: `TestUser_${randomWords.split(" ").join("_")}_${keyword}@email.test`,
     gender,
     status,
   };
