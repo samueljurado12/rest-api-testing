@@ -49,7 +49,7 @@ export class UsersRequest implements IRequest {
       data: toDo,
     });
 
-  editUser = async (userId: number, user: Partial<User>) =>
+  updateUser = async (userId: number, user: Partial<User>) =>
     await this.request.patch(this.#parameterizedEndpoint(userId), {
       headers: this.headers,
       data: user,

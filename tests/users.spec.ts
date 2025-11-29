@@ -254,11 +254,12 @@ test.describe("5. Create a user's post", () => {
     }) => {
       await testInvalidTokenScenarios(
         request,
-        (ur) => ur.addPost(createdUser.id!, generateRandomValidPost()),
+        (ur, id) => ur.addPost(id, generateRandomValidPost()),
         HttpStatusCode.UNAUTHORIZED,
         authFailedResponse,
         HttpStatusCode.UNAUTHORIZED,
-        invalidTokenResponse
+        invalidTokenResponse,
+        createdUser.id
       );
     });
   });
@@ -387,11 +388,12 @@ test.describe("6. Create a user's todo.", () => {
     }) => {
       await testInvalidTokenScenarios(
         request,
-        (ur) => ur.addTodo(createdUser.id!, generateRandomValidTodo()),
+        (ur, id) => ur.addTodo(id, generateRandomValidTodo()),
         HttpStatusCode.UNAUTHORIZED,
         authFailedResponse,
         HttpStatusCode.UNAUTHORIZED,
-        invalidTokenResponse
+        invalidTokenResponse,
+        createdUser.id
       );
     });
   });
@@ -416,7 +418,9 @@ test.describe("6. Create a user's todo.", () => {
 
         expect(status).toBe(HttpStatusCode.CREATED);
         expect(responseToDo.id).toBeTruthy();
-        expect(responseToDo).toEqual(expect.objectContaining(todoPayload));
+        expect(responseToDo).toEqual(
+          expect.objectContaining(todoPayload as Record<string, any>)
+        );
       });
     });
 
@@ -508,11 +512,12 @@ test.describe("7. Change created user", () => {
     }) => {
       await testInvalidTokenScenarios(
         request,
-        (ur) => ur.editUser(createdUser.id!, { name: "New Name" }),
+        (ur, id) => ur.updateUser(id, { name: "New Name" }),
+        HttpStatusCode.NOT_FOUND,
+        NotFoundResponse,
         HttpStatusCode.UNAUTHORIZED,
-        authFailedResponse,
-        HttpStatusCode.UNAUTHORIZED,
-        invalidTokenResponse
+        invalidTokenResponse,
+        createdUser.id
       );
     });
   });
@@ -520,7 +525,7 @@ test.describe("7. Change created user", () => {
   test.describe("Valid token", () => {
     test.describe("Successful updates", () => {
       let previousValues = createdUser;
-      test.beforeEach("Save original user status", async ({ request }) => {
+      test.beforeEach("Save original user status", async () => {
         previousValues = { ...createdUser };
       });
 
@@ -692,11 +697,12 @@ test.describe("8. Delete the changed user", () => {
     }) => {
       await testInvalidTokenScenarios(
         request,
-        (ur) => ur.deleteUser(createdUser.id!),
+        (ur, id) => ur.deleteUser(id),
+        HttpStatusCode.NOT_FOUND,
+        NotFoundResponse,
         HttpStatusCode.UNAUTHORIZED,
-        authFailedResponse,
-        HttpStatusCode.UNAUTHORIZED,
-        invalidTokenResponse
+        invalidTokenResponse,
+        createdUser.id
       );
     });
   });

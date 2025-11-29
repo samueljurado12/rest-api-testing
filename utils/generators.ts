@@ -1,7 +1,6 @@
 import { LoremIpsum } from "lorem-ipsum";
 import { Post, User } from "../pages/models";
-import Todo from "../pages/models/todo";
-import { toISOStringWithTimezone } from "./date-utils";
+import { Todo } from "../pages/models/todo";
 
 const lorem: LoremIpsum = new LoremIpsum({
   sentencesPerParagraph: { min: 2, max: 4 },
