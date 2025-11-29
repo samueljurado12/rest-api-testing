@@ -18,10 +18,11 @@ import {
   createPost,
   createTodo,
   testInvalidTokenScenarios,
-  testUserValidation,
+  testCreateUserValidation,
   testPostValidation,
   testTodoValidation,
   updateUser,
+  testUpdateUserValidation,
 } from "./helpers";
 
 let headers: any;
@@ -164,7 +165,7 @@ test.describe("4. Create a new user", () => {
               ? "can't be blank, can be male of female"
               : "can't be blank";
 
-          await testUserValidation(
+          await testCreateUserValidation(
             request,
             headers,
             user,
@@ -179,7 +180,7 @@ test.describe("4. Create a new user", () => {
       }) => {
         const user = { ...generateRandomValidUser(), gender: "whatever" };
 
-        await testUserValidation(
+        await testCreateUserValidation(
           request,
           headers,
           user,
@@ -193,7 +194,7 @@ test.describe("4. Create a new user", () => {
       }) => {
         const user = { ...generateRandomValidUser(), status: "disabled" };
 
-        await testUserValidation(
+        await testCreateUserValidation(
           request,
           headers,
           user,
@@ -217,7 +218,7 @@ test.describe("4. Create a new user", () => {
 
           (user as any)[`${property}`] = generatedWrongValue;
 
-          await testUserValidation(
+          await testCreateUserValidation(
             request,
             headers,
             user,
@@ -517,28 +518,63 @@ test.describe("7. Change created user", () => {
   });
 
   test.describe("Valid token", () => {
-    [
-      { property: "name", newValue: "New Name" },
-      { property: "email", newValue: "NewEmail@test.email" },
-      {
-        property: "gender",
-        newValue: "",
-      },
-      {
-        property: "status",
-        newValue: "",
-      },
-    ].forEach(({ property, newValue }) => {
-      test(`Should change user ${property} if valid data is provided`, async ({
-        request,
-      }) => {
-        if (property === "gender")
-          newValue = createdUser.gender === "male" ? "female" : "male";
-        if (property === "status")
-          newValue = createdUser.status === "active" ? "inactive" : "active";
-        const previousValue = (createdUser as any)[`${property}`];
-        const updateData: Partial<User> = {};
-        (updateData as any)[`${property}`] = newValue;
+    test.describe("Successful updates", () => {
+      let previousValues = createdUser;
+      test.beforeEach("Save original user status", async ({ request }) => {
+        previousValues = { ...createdUser };
+      });
+
+      test.afterEach("Revert changes made to user", async ({ request }) => {
+        await updateUser(request, headers, createdUser.id!, previousValues);
+        createdUser = { ...createdUser, ...previousValues };
+      });
+      [
+        { property: "name", newValue: "New Name" },
+        { property: "email", newValue: "NewEmail@test.email" },
+        {
+          property: "gender",
+          newValue: "",
+        },
+        {
+          property: "status",
+          newValue: "",
+        },
+      ].forEach(({ property, newValue }) => {
+        test(`Should change user ${property} if valid data is provided`, async ({
+          request,
+        }) => {
+          if (property === "gender")
+            newValue = createdUser.gender === "male" ? "female" : "male";
+          if (property === "status")
+            newValue = createdUser.status === "active" ? "inactive" : "active";
+          const previousValue = (createdUser as any)[`${property}`];
+          const updateData: Partial<User> = {};
+          (updateData as any)[`${property}`] = newValue;
+
+          const { status, body: responseBody } = await updateUser(
+            request,
+            headers,
+            createdUser.id!,
+            updateData
+          );
+
+          expect(status).toBe(HttpStatusCode.OK);
+          expect(responseBody.id).toBe(createdUser.id);
+          expect((responseBody as any)[`${property}`]).toBe(newValue);
+
+          // Revert change for next iteration
+          (createdUser as any)[`${property}`] = previousValue;
+        });
+      });
+
+      test("Should update multiple fields at once", async ({ request }) => {
+        const previousValues = { ...createdUser };
+        const updateData: Partial<User> = {
+          name: "Updated Name",
+          email: generateRandomEmail(25),
+          gender: createdUser.gender === "male" ? "female" : "male",
+          status: createdUser.status === "active" ? "inactive" : "active",
+        };
 
         const { status, body: responseBody } = await updateUser(
           request,
@@ -549,43 +585,87 @@ test.describe("7. Change created user", () => {
 
         expect(status).toBe(HttpStatusCode.OK);
         expect(responseBody.id).toBe(createdUser.id);
-        expect(responseBody[`${property}`]).toBe(newValue);
-        expect(responseBody[`${property}`]).not.toBe(previousValue);
+        expect(responseBody).toEqual(
+          expect.objectContaining(updateData as Record<string, any>)
+        );
 
-        // Revert change for next iteration
-        (createdUser as any)[`${property}`] = previousValue;
+        createdUser = { ...createdUser, ...previousValues };
       });
-    });
-
-    test("Should update multiple fields at once", async ({ request }) => {
-      const previousValues = { ...createdUser };
-      const updateData: Partial<User> = {
-        name: "Updated Name",
-        email: generateRandomEmail(25),
-        gender: createdUser.gender === "male" ? "female" : "male",
-        status: createdUser.status === "active" ? "inactive" : "active",
-      };
-
-      const { status, body: responseBody } = await updateUser(
-        request,
-        headers,
-        createdUser.id!,
-        updateData
-      );
-
-      expect(status).toBe(HttpStatusCode.OK);
-      expect(responseBody.id).toBe(createdUser.id);
-      expect(responseBody).toEqual(
-        expect.objectContaining(updateData as Record<string, any>)
-      );
-
-      createdUser = { ...createdUser, ...previousValues };
     });
 
     test("Should return Not Found (404) if user does not exist", async ({
       request,
     }) => {
       const userRequest = new UsersRequest(request, headers);
+    });
+    test.describe("Body validations", () => {
+      [
+        { property: "name", newValue: "", expectedMessage: "can't be blank" },
+        { property: "email", newValue: "", expectedMessage: "can't be blank" },
+        {
+          property: "email",
+          newValue: "InvalidEmail",
+          expectedMessage: "is invalid",
+        },
+        {
+          property: "gender",
+          newValue: "",
+          expectedMessage: "can't be blank, can be male of female",
+        },
+        {
+          property: "gender",
+          newValue: "invalidGender",
+          expectedMessage: "can't be blank, can be male of female",
+        },
+        { property: "status", newValue: "", expectedMessage: "can't be blank" },
+        {
+          property: "status",
+          newValue: "InvalidStatus",
+          expectedMessage: "can't be blank",
+        },
+      ].forEach(({ property, newValue, expectedMessage }) => {
+        test(`Should return validation error if ${property} with value ${
+          newValue ? newValue : "empty"
+        } is provided`, async ({ request }) => {
+          const updateData: Partial<User> = {};
+          (updateData as any)[`${property}`] = newValue;
+
+          await testUpdateUserValidation(
+            request,
+            headers,
+            createdUser.id!,
+            updateData,
+            property,
+            expectedMessage
+          );
+        });
+      });
+
+      [
+        { property: "name", maxLength: 200 },
+        { property: "email", maxLength: 200 },
+      ].forEach(({ property, maxLength }) => {
+        test(`Should return error if ${property} exceeds ${maxLength}`, async ({
+          request,
+        }) => {
+          const invalidData = {};
+          const generatedWrongValue =
+            property === "email"
+              ? generateRandomEmail(maxLength + 1)
+              : generateText(maxLength + 1);
+
+          (invalidData as any)[`${property}`] = generatedWrongValue;
+
+          await testUpdateUserValidation(
+            request,
+            headers,
+            createdUser.id!,
+            invalidData,
+            property,
+            `is too long (maximum is ${maxLength} characters)`
+          );
+        });
+      });
     });
   });
 });

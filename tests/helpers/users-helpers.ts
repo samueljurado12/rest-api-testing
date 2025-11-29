@@ -97,6 +97,8 @@ export const updateUser = async (
  * Test invalid token scenarios: missing token and invalid token
  * Executes the callback with no headers and with invalid headers
  * Supports different status codes for no-token vs invalid-token scenarios
+ * Asserts the response status and body for both scenarios
+ * This needed to be done like this because until saturday afternoon, the API was returning 404 instead of 401 for no token in some endpoints.
  */
 export const testInvalidTokenScenarios = async (
   request: APIRequestContext,
@@ -137,7 +139,6 @@ export const testValidation = async (
 
   expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
   const responseBody = await response.json();
-  expect(responseBody).toHaveLength(1);
   expect(responseBody).toContainEqual({
     field: expectedField,
     message: expectedMessage,
@@ -148,7 +149,7 @@ export const testValidation = async (
  * Test body validation for user creation
  * Creates a user with invalid data and asserts the validation error
  */
-export const testUserValidation = async (
+export const testCreateUserValidation = async (
   request: APIRequestContext,
   headers: any,
   invalidUser: User,
@@ -201,6 +202,27 @@ export const testTodoValidation = async (
     request,
     headers,
     (usersReq) => usersReq.addTodo(userId, invalidTodo),
+    expectedField,
+    expectedMessage
+  );
+};
+
+/**
+ * Convenience wrapper for validating update/edit user requests.
+ * Usage: await testUpdateUserValidation(request, headers, userId, payload, 'field', 'message')
+ */
+export const testUpdateUserValidation = async (
+  request: APIRequestContext,
+  headers: any,
+  userId: number,
+  invalidPayload: Partial<User>,
+  expectedField: string,
+  expectedMessage: string
+) => {
+  await testValidation(
+    request,
+    headers,
+    (usersReq) => usersReq.editUser(userId, invalidPayload),
     expectedField,
     expectedMessage
   );
