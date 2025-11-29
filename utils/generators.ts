@@ -11,9 +11,7 @@ const lorem: LoremIpsum = new LoremIpsum({
 const getRandomISODate = (from: Date, to: Date): string => {
   const fromTime = from.getTime();
   const toTime = to.getTime();
-  return toISOStringWithTimezone(
-    new Date(fromTime + Math.random() * (toTime - fromTime))
-  );
+  return new Date(fromTime + Math.random() * (toTime - fromTime)).toISOString();
 };
 
 const generateValueFromList = (list: any[]) => {
