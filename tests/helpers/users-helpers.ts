@@ -5,7 +5,6 @@ import HttpStatusCode, {
   InvalidAuthTokenHeader,
 } from "../../utils";
 import { UsersRequest } from "../../pages";
-import { executeHTTPRequest } from "../../pages/request";
 import { Response } from "../../pages/models/response";
 
 /**
@@ -80,17 +79,12 @@ export const updateUser = async (
   headers: any,
   userId: number,
   userPayload: Partial<User>
-): Promise<Response<User>> => {
-  const response = await executeHTTPRequest<User>(
-    (req) =>
-      req.patch(`/public/v2/users/${userId}`, {
-        headers,
-        data: userPayload,
-      }),
-    request
-  );
+) => {
+  const usersReq = authUsersRequest(request, headers);
 
-  return response;
+  const response = await usersReq.updateUser(userId, userPayload);
+
+  return { status: response.status(), body: await response.json() };
 };
 
 /**
@@ -222,7 +216,7 @@ export const testUpdateUserValidation = async (
   await testValidation(
     request,
     headers,
-    (usersReq) => usersReq.editUser(userId, invalidPayload),
+    (usersReq) => usersReq.updateUser(userId, invalidPayload),
     expectedField,
     expectedMessage
   );

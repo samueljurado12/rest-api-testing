@@ -416,7 +416,9 @@ test.describe("6. Create a user's todo.", () => {
 
         expect(status).toBe(HttpStatusCode.CREATED);
         expect(responseToDo.id).toBeTruthy();
-        expect(responseToDo).toEqual(expect.objectContaining(todoPayload));
+        expect(responseToDo).toEqual(
+          expect.objectContaining(todoPayload as Record<string, any>)
+        );
       });
     });
 
@@ -508,7 +510,7 @@ test.describe("7. Change created user", () => {
     }) => {
       await testInvalidTokenScenarios(
         request,
-        (ur) => ur.editUser(createdUser.id!, { name: "New Name" }),
+        (ur) => ur.updateUser(createdUser.id!, { name: "New Name" }),
         HttpStatusCode.UNAUTHORIZED,
         authFailedResponse,
         HttpStatusCode.UNAUTHORIZED,
