@@ -96,22 +96,23 @@ export const updateUser = async (
  */
 export const testInvalidTokenScenarios = async (
   request: APIRequestContext,
-  testFn: (usersRequest: UsersRequest) => Promise<any>,
+  testFn: (usersRequest: UsersRequest, resourceId?: any) => Promise<any>,
   expectedNoTokenStatus: number,
   expectedNoTokenResponse: any,
   expectedInvalidTokenStatus: number,
-  expectedInvalidTokenResponse: any
+  expectedInvalidTokenResponse: any,
+  resourceId?: any
 ) => {
   // Test: no token
   const noTokenRequest = new UsersRequest(request);
-  const noTokenResponse = await testFn(noTokenRequest);
+  const noTokenResponse = await testFn(noTokenRequest, resourceId);
   expect(noTokenResponse.status()).toBe(expectedNoTokenStatus);
   const noTokenBody = await noTokenResponse.json();
   expect(noTokenBody).toEqual(expectedNoTokenResponse);
 
   // Test: invalid token
   const invalidTokenRequest = new UsersRequest(request, InvalidAuthTokenHeader);
-  const invalidResponse = await testFn(invalidTokenRequest);
+  const invalidResponse = await testFn(invalidTokenRequest, resourceId);
   expect(invalidResponse.status()).toBe(expectedInvalidTokenStatus);
   const invalidBody = await invalidResponse.json();
   expect(invalidBody).toEqual(expectedInvalidTokenResponse);

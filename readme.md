@@ -2,7 +2,7 @@
 
 ## Disclaimer
 
-Looking at documentation and what is asked in the exercise, I think I should use [Worker-scoped fixtures](https://playwright.dev/docs/test-fixtures#worker-scoped-fixtures) in exercises 4 to 8, to make sure I'm using the same user. I tried to implement it, but it's out of my current skills right now. I understand the benefits of using this and see how my code would be cleaner, as I won't need some variables that are there to store an user, but I haven't been able to implement it while understanding what I was doing.
+> Looking at documentation and what is asked in the exercise, I think I should use [Worker-scoped fixtures](https://playwright.dev/docs/test-fixtures#worker-scoped-fixtures) in exercises 4 to 8, to make sure I'm using the same user. I tried to implement it, but it's out of my current skills right now. I understand the benefits of using this and see how my code would be cleaner, as I won't need some variables that are there to store an user, but I haven't been able to implement it while understanding what I was doing.
 
 I've done all the tests that have come to my mind at first sight and other ones that I found useful after playing around with the Rest Console.
 
@@ -37,6 +37,16 @@ I've done my tests having this into account and treating this field as it only a
 
 I've tried with different values and also checked the GET results, and I only found active and inactive as valid values.
 
+### Small typo in some error messages
+
+There are some typos in some error messages, for example, in gender validation message. It states that gender must be `male of female`.
+
+### API stores data per user
+
+According to API documentation, data created by some user is only visible to that particular user. This means that tests for no auth token in patch and delete are returning a 404 as it's prioritising to return that over the fact of the missing token. I've tried in incognito mode and if the user exists, it returns 401. I think it should return 401 for both cases.
+
+![Features](images/FeaturesText.png)
+
 ## Issues found during development
 
 ### Default config not working for auth token
@@ -45,10 +55,6 @@ According to [documentation](https://playwright.dev/docs/api-testing#configurati
 ![Configuration documentation](images/extraHTTPHeaders_issue.png)
 
 No matter what I tried, the `APIRequestContext` always received a 401 when I needed authentication, so I loaded it as part of the tests.
-
-### Small typo in some error messages
-
-There are some typos in some error messages, for example, in gender validation message. It states that gender must be `male of female`.
 
 ## Credits
 
