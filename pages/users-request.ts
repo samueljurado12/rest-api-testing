@@ -1,9 +1,9 @@
 import { APIRequestContext } from "@playwright/test";
 import { User } from "./models/user";
-import { IRequest } from "./IRequest";
+import { Request } from "./request";
 import { Post, Todo } from "./models/";
 
-export class UsersRequest implements IRequest {
+export class UsersRequest implements Request {
   readonly request: APIRequestContext;
   readonly endpoint: string = "/public/v2/users";
   readonly headers?: any;
@@ -15,16 +15,19 @@ export class UsersRequest implements IRequest {
 
   #parameterizedEndpoint = (userId: number) => `${this.endpoint}/${userId}`;
 
-  getUsers = async (params?: any) =>
-    await this.request.get(this.endpoint, {
+  getUsers = async (params?: any, user_id?: number) => {
+    let endpoint = this.endpoint;
+
+    if (user_id) {
+      endpoint = this.#parameterizedEndpoint(user_id);
+      params = undefined;
+    }
+
+    return await this.request.get(endpoint, {
       headers: this.headers,
       params: params,
     });
-
-  getSingleUser = async (userId: number) =>
-    await this.request.get(this.#parameterizedEndpoint(userId), {
-      headers: this.headers,
-    });
+  };
 
   createUser = async (user: User) =>
     await this.request.post(this.endpoint, {

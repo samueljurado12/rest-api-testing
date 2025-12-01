@@ -1,6 +1,6 @@
 import { APIRequestContext } from "@playwright/test";
 
-export interface IRequest {
+export interface Request {
   readonly request: APIRequestContext;
   readonly endpoint: string;
   readonly headers?: any;

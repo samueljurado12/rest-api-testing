@@ -1,9 +1,9 @@
 import { APIRequestContext } from "@playwright/test";
 import { Request } from "./request";
 
-export class PostsRequest implements Request {
+export class TodosRequest implements Request {
   readonly request: APIRequestContext;
-  readonly endpoint: string = "/public/v2/posts";
+  readonly endpoint: string = "/public/v2/todos";
   readonly headers?: any;
 
   constructor(request: APIRequestContext, headers?: any) {
@@ -11,7 +11,7 @@ export class PostsRequest implements Request {
     this.headers = headers;
   }
 
-  getPosts = async (params?: any) =>
+  getTodos = async (params?: any) =>
     await this.request.get(this.endpoint, {
       params: params,
     });

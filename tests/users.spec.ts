@@ -156,7 +156,7 @@ test.describe("4. Create a new user", () => {
         { emptyData: { gender: "" }, property: "gender" },
         { emptyData: { status: "" }, property: "status" },
       ].forEach(({ emptyData, property }) => {
-        test(`Should return error message if ${property} is empty`, async ({
+        test(`Should return validation error message if ${property} is empty`, async ({
           request,
         }) => {
           const user = { ...generateRandomValidUser(), ...emptyData };
@@ -175,7 +175,7 @@ test.describe("4. Create a new user", () => {
         });
       });
 
-      test("Should return error if gender is not male or female", async ({
+      test("Should return validation error if gender is not male or female", async ({
         request,
       }) => {
         const user = { ...generateRandomValidUser(), gender: "whatever" };
@@ -189,7 +189,7 @@ test.describe("4. Create a new user", () => {
         );
       });
 
-      test("Should return error if status is not active or inactive", async ({
+      test("Should return validation error if status is not active or inactive", async ({
         request,
       }) => {
         const user = { ...generateRandomValidUser(), status: "disabled" };
@@ -207,7 +207,7 @@ test.describe("4. Create a new user", () => {
         { property: "name", maxLength: 200 },
         { property: "email", maxLength: 200 },
       ].forEach(({ property, maxLength }) => {
-        test(`Should return error if ${property} exceeds ${maxLength}`, async ({
+        test(`Should return validation error if ${property} exceeds ${maxLength}`, async ({
           request,
         }) => {
           const user = generateRandomValidUser();
@@ -283,84 +283,87 @@ test.describe("5. Create a user's post", () => {
       );
     });
 
-    test("Should return error if user id does not exist", async ({
-      request,
-    }) => {
-      const userRequest = new UsersRequest(request, headers);
-      const invalidUserId = -1;
-      const expectedErrorMessage: FieldErrorMessage = {
-        field: "user",
-        message: "must exist",
-      };
-
-      const response = await userRequest.addPost(
-        invalidUserId,
-        generateRandomValidPost()
-      );
-      const responseBody = await response.json();
-
-      expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
-      expect(responseBody).toHaveLength(1);
-      expect(responseBody).toContainEqual(expectedErrorMessage);
-    });
-
-    [{ property: "title" }, { property: "body" }].forEach(({ property }) => {
-      test(`Should return error when sending empty ${property}`, async ({
+    test.describe("Body validations", () => {
+      test("Should return validation error if user id does not exist", async ({
         request,
       }) => {
-        const emptyPropertyPost = generateRandomValidPost();
-        (emptyPropertyPost as any)[property] = "";
+        const userRequest = new UsersRequest(request, headers);
+        const invalidUserId = -1;
+        const expectedErrorMessage: FieldErrorMessage = {
+          field: "user",
+          message: "must exist",
+        };
 
-        await testPostValidation(
-          request,
-          headers,
-          createdUser.id!,
-          emptyPropertyPost,
-          property,
-          "can't be blank"
+        const response = await userRequest.addPost(
+          invalidUserId,
+          generateRandomValidPost()
         );
+        const responseBody = await response.json();
+
+        expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
+        expect(responseBody).toHaveLength(1);
+        expect(responseBody).toContainEqual(expectedErrorMessage);
       });
-    });
-    [
-      { property: "title", maxLength: 200 },
-      { property: "body", maxLength: 500 },
-    ].forEach(({ property, maxLength }) => {
-      test(`Should return error if ${property} exceeds limit of ${maxLength} characters`, async ({
+
+      [{ property: "title" }, { property: "body" }].forEach(({ property }) => {
+        test(`Should return validation error when sending empty ${property}`, async ({
+          request,
+        }) => {
+          const emptyPropertyPost = generateRandomValidPost();
+          (emptyPropertyPost as any)[property] = "";
+
+          await testPostValidation(
+            request,
+            headers,
+            createdUser.id!,
+            emptyPropertyPost,
+            property,
+            "can't be blank"
+          );
+        });
+      });
+
+      [
+        { property: "title", maxLength: 200 },
+        { property: "body", maxLength: 500 },
+      ].forEach(({ property, maxLength }) => {
+        test(`Should return validation error if ${property} exceeds limit of ${maxLength} characters`, async ({
+          request,
+        }) => {
+          const post = generateRandomValidPost();
+          (post as any)[`${property}`] = generateText(maxLength + 1);
+
+          await testPostValidation(
+            request,
+            headers,
+            createdUser.id!,
+            post,
+            property,
+            `is too long (maximum is ${maxLength} characters)`
+          );
+        });
+      });
+
+      test.skip("Should return if user id is not a number", async ({
         request,
       }) => {
-        const post = generateRandomValidPost();
-        (post as any)[`${property}`] = generateText(maxLength + 1);
+        const userRequest = new UsersRequest(request, headers);
+        const expectedErrorMessage: FieldErrorMessage = {
+          field: "user_id",
+          message: "is not a number",
+        };
+        let user_id;
 
-        await testPostValidation(
-          request,
-          headers,
-          createdUser.id!,
-          post,
-          property,
-          `is too long (maximum is ${maxLength} characters)`
+        const response = await userRequest.addPost(
+          user_id!,
+          generateRandomValidPost()
         );
+        const responseBody = await response.json();
+
+        expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
+        expect(responseBody).toHaveLength(2);
+        expect(responseBody).toContainEqual(expectedErrorMessage);
       });
-    });
-
-    test.skip("Should return validation if user id is not a number", async ({
-      request,
-    }) => {
-      const userRequest = new UsersRequest(request, headers);
-      const expectedErrorMessage: FieldErrorMessage = {
-        field: "user_id",
-        message: "is not a number",
-      };
-      let user_id;
-
-      const response = await userRequest.addPost(
-        user_id!,
-        generateRandomValidPost()
-      );
-      const responseBody = await response.json();
-
-      expect(response.status()).toBe(HttpStatusCode.UNPROCESSABLE_ENTITY);
-      expect(responseBody).toHaveLength(2);
-      expect(responseBody).toContainEqual(expectedErrorMessage);
     });
   });
 });
@@ -442,50 +445,54 @@ test.describe("6. Create a user's todo.", () => {
       expect(responseTodo).toEqual(expect.objectContaining(expectedTodo));
     });
 
-    test("Should return error if status is not pending or completed", async ({
-      request,
-    }) => {
-      const todoPayload = generateRandomValidTodo();
-      todoPayload.status = "Progressing";
-
-      await testTodoValidation(
+    test.describe("Body validations", () => {
+      test("Should return validation error if status is not pending or completed", async ({
         request,
-        headers,
-        createdUser.id!,
-        todoPayload,
-        "status",
-        "can't be blank, can be pending or completed"
-      );
-    });
+      }) => {
+        const todoPayload = generateRandomValidTodo();
+        todoPayload.status = "Progressing";
 
-    test("Should return error if title is empty", async ({ request }) => {
-      const todoPayload = generateRandomValidTodo();
-      todoPayload.title = "";
+        await testTodoValidation(
+          request,
+          headers,
+          createdUser.id!,
+          todoPayload,
+          "status",
+          "can't be blank, can be pending or completed"
+        );
+      });
 
-      await testTodoValidation(
+      test("Should return validation error if title is empty", async ({
         request,
-        headers,
-        createdUser.id!,
-        todoPayload,
-        "title",
-        "can't be blank"
-      );
-    });
+      }) => {
+        const todoPayload = generateRandomValidTodo();
+        todoPayload.title = "";
 
-    test(`Should return error if title exceeds limit of 200 characters`, async ({
-      request,
-    }) => {
-      const todoPayload = generateRandomValidTodo();
-      todoPayload.title = generateText(201);
+        await testTodoValidation(
+          request,
+          headers,
+          createdUser.id!,
+          todoPayload,
+          "title",
+          "can't be blank"
+        );
+      });
 
-      await testTodoValidation(
+      test(`Should return validation error if title exceeds limit of 200 characters`, async ({
         request,
-        headers,
-        createdUser.id!,
-        todoPayload,
-        "title",
-        "is too long (maximum is 200 characters)"
-      );
+      }) => {
+        const todoPayload = generateRandomValidTodo();
+        todoPayload.title = generateText(201);
+
+        await testTodoValidation(
+          request,
+          headers,
+          createdUser.id!,
+          todoPayload,
+          "title",
+          "is too long (maximum is 200 characters)"
+        );
+      });
     });
   });
 });
@@ -650,7 +657,7 @@ test.describe("7. Change created user", () => {
         { property: "name", maxLength: 200 },
         { property: "email", maxLength: 200 },
       ].forEach(({ property, maxLength }) => {
-        test(`Should return error if ${property} exceeds ${maxLength}`, async ({
+        test(`Should return validation error if ${property} exceeds ${maxLength}`, async ({
           request,
         }) => {
           const invalidData = {};
@@ -719,7 +726,7 @@ test.describe("8. Delete the changed user", () => {
       expect(response.status()).toBe(HttpStatusCode.NOT_FOUND);
       expect(responseBody).toEqual(NotFoundResponse);
     });
-    test("Should delete user if everything is fine", async ({ request }) => {
+    test("Should delete user if it exists", async ({ request }) => {
       const userRequest = new UsersRequest(request, headers);
 
       const response = await userRequest.deleteUser(createdUser.id!);
