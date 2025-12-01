@@ -3,6 +3,8 @@
 ## Disclaimer
 
 > Looking at documentation and what is asked in the exercise, I think I should use [Worker-scoped fixtures](https://playwright.dev/docs/test-fixtures#worker-scoped-fixtures) in exercises 4 to 8, to make sure I'm using the same user. I tried to implement it, but it's out of my current skills right now. I understand the benefits of using this and see how my code would be cleaner, as I won't need some variables that are there to store an user, but I haven't been able to implement it while understanding what I was doing.
+The same apply to fixtures and projects, I understood the concept and see it's advantages, but, again, I haven't been able to implement it in a timely manner.
+Finally, I realize too late that I could have saved up a lot of code if I did a generic request method. That's why I introduced models Payload, Record and Response, as I tried implementing it, but then realized the refactor needed to change what I had for the generic method would be so time consuming I would have not been able to finish everything on time. I deleted the file holding the generic method, which now I think I shouldn't have done.
 
 I've done all the tests that have come to my mind at first sight and other ones that I found useful after playing around with the Rest Console.
 
